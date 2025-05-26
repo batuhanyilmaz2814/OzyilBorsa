@@ -6,6 +6,7 @@ using BorsaAlarmTakipci.Models;  // AlarmDefinition modelimiz
 using BorsaAlarmTakipci.Services; // DatabaseService'imiz
 //using BorsaAlarmTakipci.Views;   // AddAlarmPage'e gitmek için (henüz oluşturmadık)
 using Microsoft.Maui.Controls; // Shell navigasyonu için
+using Microsoft.Maui.ApplicationModel; // MainThread için
 using System.Diagnostics; // Debug sınıfı için bu satırı ekleyin
 using System.Timers; // Timer sınıfı için bu satırı ekleyin
 
@@ -18,7 +19,7 @@ namespace BorsaAlarmTakipci.ViewModels
         private readonly FinancialDataService _financialDataService; // EKLENDİ
         private System.Timers.Timer _priceCheckTimer;
         // Timer için bir alan ekleyelim
-        private const double PriceCheckIntervalMinutes = 2; //Kontrol aralığı (dakika cinsinden)
+        private const double PriceCheckIntervalMinutes = 0.5; //Kontrol aralığı (dakika cinsinden)
 
         [ObservableProperty]
         private ObservableCollection<AlarmDefinition> _alarms;
@@ -48,20 +49,17 @@ namespace BorsaAlarmTakipci.ViewModels
             // Timer'ı sayfa göründüğünde başlatacağız.
         }
 
+        // Zamanlayıcı tetiklendiğinde çalışacak metot
         private async Task OnTimerElapsed()
         {
-            // Ana UI thread'inde çalışmadığımızdan emin olmak için, 
-            // UI güncellemeleri veya DisplayAlert gibi işlemler için MainThread.BeginInvokeOnMainThread kullanılmalı.
-            // Ancak fiyat kontrolü ve API çağrıları arka planda kalabilir.
-
             Debug.WriteLine("Fiyat kontrol zamanlayıcısı tetiklendi.");
-            if (IsBusy) // Zaten bir işlem yapılıyorsa (örneğin manuel yükleme) atla
+            if (IsBusy)
             {
                 Debug.WriteLine("Fiyat kontrolü atlandı, başka bir işlem devam ediyor.");
                 return;
             }
 
-            IsBusy = true; // Bu, UI'da bir yükleme göstergesi tetikleyebilir (isteğe bağlı)
+            IsBusy = true;
             try
             {
                 var activeAlarms = await _databaseService.GetActiveAlarmsAsync();
@@ -75,31 +73,51 @@ namespace BorsaAlarmTakipci.ViewModels
 
                 foreach (var alarm in activeAlarms)
                 {
+                    Debug.WriteLine($"Alarm kontrol ediliyor: {alarm.StockSymbol}, ÜstLimit: {alarm.UpperLimit}, AltLimit: {alarm.LowerLimit}");
+
                     var priceData = await _financialDataService.GetRealTimePriceAsync(alarm.StockSymbol);
                     if (priceData?.ParsedPrice != null)
                     {
                         double currentPrice = priceData.ParsedPrice.Value;
                         Debug.WriteLine($"Sembol: {alarm.StockSymbol}, Anlık Fiyat: {currentPrice}, Üst Limit: {alarm.UpperLimit}, Alt Limit: {alarm.LowerLimit}");
 
-                        // Eşik kontrolü (şimdilik sadece Debug.WriteLine ile, bildirim sonraki adımda)
-                        if (alarm.UpperLimit.HasValue && currentPrice >= alarm.UpperLimit.Value)
+                        // Eşik kontrolü için ayrı boolean değişkenler kullanarak mantığı daha açık hale getiriyoruz
+                        bool upperLimitTriggered = alarm.UpperLimit.HasValue && currentPrice >= alarm.UpperLimit.Value;
+                        bool lowerLimitTriggered = alarm.LowerLimit.HasValue && currentPrice <= alarm.LowerLimit.Value;
+
+                        Debug.WriteLine($"Üst limit tetiklendi mi: {upperLimitTriggered}, Alt limit tetiklendi mi: {lowerLimitTriggered}");
+
+                        // Eşik kontrolü
+                        if (upperLimitTriggered)
                         {
                             Debug.WriteLine($"ALARM TETİKLENDİ (ÜST LİMİT): {alarm.StockSymbol} fiyatı {currentPrice}, üst limit olan {alarm.UpperLimit.Value} değerine ulaştı veya geçti!");
-                            // TODO: Adım 8 - Yerel Bildirim Gönder
-                            // TODO: İsteğe bağlı olarak alarmı pasif hale getir (IsEnabled = false) ve veritabanında güncelle
+
+                            // UI thread'inde bir uyarı gösterelim
+                            MainThread.BeginInvokeOnMainThread(async () =>
+                            {
+                                await Shell.Current.DisplayAlert("Alarm Tetiklendi!",
+                                    $"{alarm.StockSymbol} hissesinin fiyatı ({currentPrice}), belirlediğiniz üst limit olan {alarm.UpperLimit.Value} değerine ulaştı veya geçti!",
+                                    "Tamam");
+                            });
                         }
-                        else if (alarm.LowerLimit.HasValue && currentPrice <= alarm.LowerLimit.Value)
+                        else if (lowerLimitTriggered)
                         {
                             Debug.WriteLine($"ALARM TETİKLENDİ (ALT LİMİT): {alarm.StockSymbol} fiyatı {currentPrice}, alt limit olan {alarm.LowerLimit.Value} değerine ulaştı veya altına düştü!");
-                            // TODO: Adım 8 - Yerel Bildirim Gönder
-                            // TODO: İsteğe bağlı olarak alarmı pasif hale getir (IsEnabled = false) ve veritabanında güncelle
+
+                            // UI thread'inde bir uyarı gösterelim
+                            MainThread.BeginInvokeOnMainThread(async () =>
+                            {
+                                await Shell.Current.DisplayAlert("Alarm Tetiklendi!",
+                                    $"{alarm.StockSymbol} hissesinin fiyatı ({currentPrice}), belirlediğiniz alt limit olan {alarm.LowerLimit.Value} değerine ulaştı veya altına düştü!",
+                                    "Tamam");
+                            });
                         }
                     }
                     else
                     {
                         Debug.WriteLine($"{alarm.StockSymbol} için fiyat alınamadı.");
                     }
-                    await Task.Delay(500); // API'ye çok sık istek atmamak için kısa bir bekleme (isteğe bağlı)
+                    await Task.Delay(1000); // API'ye çok sık istek atmamak için kısa bir bekleme
                 }
             }
             catch (Exception ex)
@@ -111,6 +129,7 @@ namespace BorsaAlarmTakipci.ViewModels
                 IsBusy = false;
             }
         }
+
 
         // Sayfa göründüğünde zamanlayıcıyı başlatmak ve alarmları yüklemek için metot
         // Bu metot, MainPage.xaml.cs içindeki OnAppearing() metodundan çağrılacak.
@@ -217,7 +236,7 @@ namespace BorsaAlarmTakipci.ViewModels
             try
             {
                 // Test için bir hisse senedi sembolü
-                string testSymbol = "AAPL"; // Veya başka bir geçerli sembol
+                string testSymbol = "THYAO"; // Veya başka bir geçerli sembol
                 var priceData = await _financialDataService.GetRealTimePriceAsync(testSymbol);
                 if (priceData != null && priceData.ParsedPrice.HasValue)
                 {
