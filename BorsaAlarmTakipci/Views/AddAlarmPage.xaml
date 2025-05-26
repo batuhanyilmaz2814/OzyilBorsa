@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="BorsaAlarmTakipci.Views.AddAlarmPage"
+             xmlns:viewmodels="clr-namespace:BorsaAlarmTakipci.ViewModels"
+             x:DataType="viewmodels:AddAlarmPageViewModel"
+             Title="{Binding PageTitle}">
+
+    <VerticalStackLayout Spacing="10" Padding="20">
+        <Label Text="Hisse Senedi Sembolü:" />
+        <Entry Placeholder="Örn: THYAO, ASELS" 
+               Text="{Binding StockSymbol}" 
+               Keyboard="Text" />
+
+        <Label Text="Fiyat Üst Limiti (Opsiyonel) :" />
+        <Entry Placeholder="Örn: 150.75" 
+               Text="{Binding UpperLimit}" 
+               Keyboard="Numeric" />
+
+        <Label Text="Fiyat Alt Limiti (Opsiyonel):" />
+        <Entry Placeholder="Örn: 120.50" 
+               Text="{Binding LowerLimit}" 
+               Keyboard="Numeric" />
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,20,0,0">
+            <Button Grid.Column="0" 
+                    Text="Kaydet" 
+                    Command="{Binding SaveAlarmCommand}" 
+                    Style="{StaticResource ButtonPrimary}"/>
+            <!-- Stil tanımlanabilir -->
+            <Button Grid.Column="1" 
+                    Text="İptal" 
+                    Command="{Binding CancelCommand}" 
+                    Style="{StaticResource ButtonSecondary}"/>
+            <!-- Stil tanımlanabilir -->
+        </Grid>
+    </VerticalStackLayout>
+</ContentPage>
