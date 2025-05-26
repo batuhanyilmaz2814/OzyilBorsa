@@ -4,7 +4,7 @@
              x:Class="BorsaAlarmTakipci.Views.AddAlarmPage"
              xmlns:viewmodels="clr-namespace:BorsaAlarmTakipci.ViewModels"
              x:DataType="viewmodels:AddAlarmPageViewModel"
-             Title="{Binding PageTitle}">
+             Title="Alarm Ekle">
 
     <VerticalStackLayout Spacing="10" Padding="20">
         <Label Text="Hisse Senedi Sembolü:" />

@@ -35,10 +35,10 @@
                                     <Label Text="Alt Limit:" />
                                     <Label Text="{Binding LowerLimit, StringFormat='{0:N2} ₺'}" />
                                 </HorizontalStackLayout>
-                                <Label Text="{Binding CreatedDate, StringFormat='Oluşturulma: {0:dd.MM.yyyy HH:mm}'}" FontSize="Small" TextColor="Gray"/>
+                                <Label Text="{Binding CreatedAt, StringFormat='Oluşturulma: {0:dd.MM.yyyy HH:mm}'}" FontSize="Small" TextColor="Gray"/>
                             </StackLayout>
 
-                            <Switch Grid.Column="1" IsToggled="{Binding IsEnabled}" VerticalOptions="Center" />
+                            <Switch Grid.Column="1" IsToggled="{Binding IsActive}" VerticalOptions="Center" />
 
                             <Button Grid.Column="2" 
                                     Text="Sil" 

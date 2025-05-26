@@ -91,7 +91,7 @@ namespace BorsaAlarmTakipci.Services
         public async Task<List<AlarmDefinition>> GetActiveAlarmsAsync()
         {
             await InitializeAsync();
-            return await _database.Table<AlarmDefinition>().Where(a => a.IsEnabled).ToListAsync();
+            return await _database.Table<AlarmDefinition>().Where(a => a.IsActive).ToListAsync();
         }
 
 

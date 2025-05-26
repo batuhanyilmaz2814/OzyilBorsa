@@ -1,52 +1,78 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using BorsaAlarmTakipci.Models;
+using BorsaAlarmTakipci.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Controls;
+using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
-using BorsaAlarmTakipci.Models;  // AlarmDefinition modelimiz
-using BorsaAlarmTakipci.Services; // DatabaseService'imiz
-//using BorsaAlarmTakipci.Views;   // AddAlarmPage'e gitmek için (henüz oluşturmadık)
-using Microsoft.Maui.Controls; // Shell navigasyonu için
-using Microsoft.Maui.ApplicationModel; // MainThread için
-using System.Diagnostics; // Debug sınıfı için bu satırı ekleyin
-using System.Timers; // Timer sınıfı için bu satırı ekleyin
-
+using System.Timers;
 
 namespace BorsaAlarmTakipci.ViewModels
 {
-    public partial class MainPageViewModel : ObservableObject, IDisposable
+    public partial class MainPageViewModel : ObservableObject
     {
         private readonly DatabaseService _databaseService;
-        private readonly FinancialDataService _financialDataService; // EKLENDİ
-        private System.Timers.Timer _priceCheckTimer;
-        // Timer için bir alan ekleyelim
-        private const double PriceCheckIntervalMinutes = 0.5; //Kontrol aralığı (dakika cinsinden)
+        private readonly FinancialDataService _financialDataService;
+        private readonly NotificationService _notificationService; // Eklendi
+        private System.Timers.Timer _timer;
+        private const double PriceCheckIntervalMinutes = 0.5; // 5 dakika
 
         [ObservableProperty]
         private ObservableCollection<AlarmDefinition> _alarms;
 
         [ObservableProperty]
-        private bool _isBusy; // Yükleme durumu için
+        private bool _isBusy;
 
-        public MainPageViewModel(DatabaseService databaseService, FinancialDataService financialDataService)
+        public MainPageViewModel(DatabaseService databaseService, FinancialDataService financialDataService, NotificationService notificationService) // Güncellendi
         {
             _databaseService = databaseService;
             _financialDataService = financialDataService;
+            _notificationService = notificationService; // Eklendi
             _alarms = new ObservableCollection<AlarmDefinition>();
-            InitializeTimer();
-            
-            // Sayfa ilk yüklendiğinde alarmları getir
-            // LoadAlarmsCommand.Execute(null); // Bu şekilde de çağrılabilir veya doğrudan metot çağrılır.
-            // ViewModel oluşturulduğunda alarmları yüklemek için bir metot çağırabiliriz.
-            // Ancak, sayfa göründüğünde yüklemek daha iyi bir pratik olabilir (OnAppearing).
         }
 
-        private void InitializeTimer()
+        // Sayfa göründüğünde çağrılır
+        public async Task OnPageAppearingAsync()
         {
-            _priceCheckTimer = new System.Timers.Timer();
-            _priceCheckTimer.Interval = TimeSpan.FromMinutes(PriceCheckIntervalMinutes).TotalMilliseconds;
-            _priceCheckTimer.Elapsed += async (sender, e) => await OnTimerElapsed();
-            _priceCheckTimer.AutoReset = true; // Her tetiklendiğinde yeniden başlasın
-            // Timer'ı sayfa göründüğünde başlatacağız.
+            await LoadAlarmsAsync();
+            StartPriceCheckTimer();
+        }
+
+        // Sayfa kaybolduğunda çağrılır
+        public void OnPageDisappearing()
+        {
+            StopPriceCheckTimer();
+        }
+
+        // Zamanlayıcıyı başlatan metot
+        private void StartPriceCheckTimer()
+        {
+            if (_timer == null)
+            {
+                _timer = new System.Timers.Timer(PriceCheckIntervalMinutes * 60 * 1000); // Dakikayı milisaniyeye çevir
+                _timer.Elapsed += async (s, e) => await OnTimerElapsed();
+                _timer.AutoReset = true;
+            }
+
+            if (!_timer.Enabled)
+            {
+                _timer.Start();
+                Debug.WriteLine("Fiyat kontrol zamanlayıcısı başlatıldı.");
+            }
+        }
+
+        // Zamanlayıcıyı durduran metot
+        private void StopPriceCheckTimer()
+        {
+            if (_timer != null && _timer.Enabled)
+            {
+                _timer.Stop();
+                Debug.WriteLine("Fiyat kontrol zamanlayıcısı durduruldu.");
+            }
         }
 
         // Zamanlayıcı tetiklendiğinde çalışacak metot
@@ -92,11 +118,14 @@ namespace BorsaAlarmTakipci.ViewModels
                         {
                             Debug.WriteLine($"ALARM TETİKLENDİ (ÜST LİMİT): {alarm.StockSymbol} fiyatı {currentPrice}, üst limit olan {alarm.UpperLimit.Value} değerine ulaştı veya geçti!");
 
-                            // UI thread'inde bir uyarı gösterelim
+                            // Yerel bildirim gönder
+                            await _notificationService.SendPriceAlertNotificationAsync(alarm, currentPrice, true);
+
+                            // UI thread'inde bir uyarı gösterelim (uygulama açıkken)
                             MainThread.BeginInvokeOnMainThread(async () =>
                             {
                                 await Shell.Current.DisplayAlert("Alarm Tetiklendi!",
-                                    $"{alarm.StockSymbol} hissesinin fiyatı ({currentPrice}), belirlediğiniz üst limit olan {alarm.UpperLimit.Value} değerine ulaştı veya geçti!",
+                                    $"{alarm.StockSymbol} hissesinin fiyatı ({currentPrice:N2} ₺), belirlediğiniz üst limit olan {alarm.UpperLimit:N2} ₺ değerine ulaştı veya geçti!",
                                     "Tamam");
                             });
                         }
@@ -104,11 +133,14 @@ namespace BorsaAlarmTakipci.ViewModels
                         {
                             Debug.WriteLine($"ALARM TETİKLENDİ (ALT LİMİT): {alarm.StockSymbol} fiyatı {currentPrice}, alt limit olan {alarm.LowerLimit.Value} değerine ulaştı veya altına düştü!");
 
-                            // UI thread'inde bir uyarı gösterelim
+                            // Yerel bildirim gönder
+                            await _notificationService.SendPriceAlertNotificationAsync(alarm, currentPrice, false);
+
+                            // UI thread'inde bir uyarı gösterelim (uygulama açıkken)
                             MainThread.BeginInvokeOnMainThread(async () =>
                             {
                                 await Shell.Current.DisplayAlert("Alarm Tetiklendi!",
-                                    $"{alarm.StockSymbol} hissesinin fiyatı ({currentPrice}), belirlediğiniz alt limit olan {alarm.LowerLimit.Value} değerine ulaştı veya altına düştü!",
+                                    $"{alarm.StockSymbol} hissesinin fiyatı ({currentPrice:N2} ₺), belirlediğiniz alt limit olan {alarm.LowerLimit:N2} ₺ değerine ulaştı veya altına düştü!",
                                     "Tamam");
                             });
                         }
@@ -130,30 +162,6 @@ namespace BorsaAlarmTakipci.ViewModels
             }
         }
 
-
-        // Sayfa göründüğünde zamanlayıcıyı başlatmak ve alarmları yüklemek için metot
-        // Bu metot, MainPage.xaml.cs içindeki OnAppearing() metodundan çağrılacak.
-        public async Task OnPageAppearingAsync()
-        {
-            await LoadAlarmsAsync(); // Mevcut alarmları yükle
-            if (!_priceCheckTimer.Enabled)
-            {
-                _priceCheckTimer.Start();
-                Debug.WriteLine("Fiyat kontrol zamanlayıcısı başlatıldı.");
-            }
-        }
-
-        // Sayfa kaybolduğunda zamanlayıcıyı durdurmak için metot
-        // Bu metot, MainPage.xaml.cs içindeki OnDisappearing() metodundan çağrılacak.
-        public void OnPageDisappearing()
-        {
-            if (_priceCheckTimer.Enabled)
-            {
-                _priceCheckTimer.Stop();
-                Debug.WriteLine("Fiyat kontrol zamanlayıcısı durduruldu.");
-            }
-        }
-
         [RelayCommand]
         private async Task LoadAlarmsAsync()
         {
@@ -169,9 +177,9 @@ namespace BorsaAlarmTakipci.ViewModels
                     Alarms.Add(alarm);
                 }
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                // Hata yönetimi: Kullanıcıya bir mesaj gösterilebilir
+                Debug.WriteLine($"Alarmlar yüklenirken hata: {ex.Message}");
                 await Shell.Current.DisplayAlert("Hata", $"Alarmlar yüklenirken bir sorun oluştu: {ex.Message}", "Tamam");
             }
             finally
@@ -180,91 +188,59 @@ namespace BorsaAlarmTakipci.ViewModels
             }
         }
 
-        // IDisposable implementasyonu
-        public void Dispose()
-        {
-            _priceCheckTimer?.Stop();
-            _priceCheckTimer?.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
-
         [RelayCommand]
         private async Task GoToAddAlarmPageAsync()
         {
-            // AddAlarmPage henüz oluşturulmadı, oluşturulduktan sonra bu satır çalışacaktır.
-            // await Shell.Current.GoToAsync(nameof(AddAlarmPage));
-            // Şimdilik geçici bir uyarı gösterelim:
-            //await Shell.Current.DisplayAlert("Uyarı", "Alarm ekleme sayfası henüz oluşturulmadı.", "Tamam");
-            await Shell.Current.GoToAsync("AddAlarmPage"); // Rota olarak tanımlanacak
+            await Shell.Current.GoToAsync("//AddAlarmPage");
         }
 
-        // Bir alarmı silmek için komut (SwipeView ile kullanılabilir)
         [RelayCommand]
         private async Task DeleteAlarmAsync(AlarmDefinition alarmToDelete)
         {
             if (alarmToDelete == null) return;
 
-            // Kullanıcıdan onay al
-            bool confirmed = await Shell.Current.DisplayAlert(
-                "Alarmı Sil",
-                $"'{alarmToDelete.StockSymbol}' sembollü alarmı silmek istediğinizden emin misiniz?",
-                "Evet",
-                "Hayır");
-
+            bool confirmed = await Shell.Current.DisplayAlert("Alarmı Sil", $"{alarmToDelete.StockSymbol} sembollü alarmı silmek istediğinizden emin misiniz?", "Evet", "Hayır");
             if (confirmed)
             {
-                try
-                {
-                    await _databaseService.DeleteAlarmAsync(alarmToDelete);
-                    Alarms.Remove(alarmToDelete); // Koleksiyondan da kaldır
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Alarm silinirken hata: {ex.Message}");
-                    await Shell.Current.DisplayAlert("Hata", "Alarm silinirken bir sorun oluştu.", "Tamam");
-                }
+                await _databaseService.DeleteAlarmAsync(alarmToDelete);
+                Alarms.Remove(alarmToDelete);
             }
         }
 
-        // ... (MainPageViewModel.cs içinde)
         [RelayCommand]
         private async Task TestApiAsync()
         {
             if (IsBusy) return;
             IsBusy = true;
+
             try
             {
-                // Test için bir hisse senedi sembolü
-                string testSymbol = "THYAO"; // Veya başka bir geçerli sembol
+                string testSymbol = "THYAO"; // Test için THYAO kullanıyoruz
                 var priceData = await _financialDataService.GetRealTimePriceAsync(testSymbol);
-                if (priceData != null && priceData.ParsedPrice.HasValue)
+
+                if (priceData?.ParsedPrice != null)
                 {
-                    Debug.WriteLine($"TEST API: {testSymbol} fiyatı: {priceData.ParsedPrice.Value}");
-                    await Shell.Current.DisplayAlert("API Test Sonucu", $"{testSymbol} için anlık fiyat: {priceData.ParsedPrice.Value}", "Tamam");
-                }
-                else if (priceData != null && priceData.Price != null)
-                {
-                    Debug.WriteLine($"TEST API: {testSymbol} fiyatı (string): {priceData.Price}");
-                    await Shell.Current.DisplayAlert("API Test Sonucu", $"{testSymbol} için anlık fiyat (string): {priceData.Price}", "Tamam");
+                    await Shell.Current.DisplayAlert("API Test Başarılı",
+                        $"{testSymbol} hissesinin anlık fiyatı: {priceData.ParsedPrice.Value:N2} ₺",
+                        "Tamam");
                 }
                 else
                 {
-                    Debug.WriteLine($"TEST API: {testSymbol} için fiyat alınamadı.");
-                    await Shell.Current.DisplayAlert("API Test Sonucu", $"{testSymbol} için fiyat verisi alınamadı.", "Tamam");
+                    await Shell.Current.DisplayAlert("API Test Başarısız",
+                        $"{testSymbol} için fiyat alınamadı.",
+                        "Tamam");
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"TEST API Hatası: {ex.Message}");
-                await Shell.Current.DisplayAlert("API Test Hatası", $"Hata: {ex.Message}", "Tamam");
+                await Shell.Current.DisplayAlert("API Test Hatası",
+                    $"Test sırasında bir hata oluştu: {ex.Message}",
+                    "Tamam");
             }
             finally
             {
                 IsBusy = false;
             }
         }
-
     }
-
 }

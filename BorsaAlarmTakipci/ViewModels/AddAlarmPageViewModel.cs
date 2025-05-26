@@ -1,111 +1,126 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using System.Threading.Tasks;
-using BorsaAlarmTakipci.Models;
+﻿using BorsaAlarmTakipci.Models;
 using BorsaAlarmTakipci.Services;
-using Microsoft.Maui.Controls; // Shell navigasyonu ve DisplayAlert için
-using System.Linq; // String validasyonu için
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Maui.Controls;
+using System;
+using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace BorsaAlarmTakipci.ViewModels
 {
-    // QueryProperty attribute'ü, navigasyon sırasında parametre almak için kullanılır (düzenleme senaryosu için)
-    // [QueryProperty(nameof(AlarmToEditId), "alarmId")] 
     public partial class AddAlarmPageViewModel : ObservableObject
     {
         private readonly DatabaseService _databaseService;
-        // private int _alarmToEditId; // Düzenlenecek alarmın ID'si
-        // private AlarmDefinition _alarmToEdit; // Düzenlenecek alarm nesnesi
 
         [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(SaveAlarmCommand))]
         private string _stockSymbol;
 
         [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(SaveAlarmCommand))] // EKLENDİ
-        private double? _upperLimit;
+        private string _upperLimit;
 
         [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(SaveAlarmCommand))] // EKLENDİ
-        private double? _lowerLimit;
+        private string _lowerLimit;
 
         [ObservableProperty]
-        private string _pageTitle = "Yeni Alarm Ekle";
+        private bool _isActive = true;
+
+        [ObservableProperty]
+        private bool _isBusy;
 
         public AddAlarmPageViewModel(DatabaseService databaseService)
         {
             _databaseService = databaseService;
         }
 
-        // Düzenleme için ID geldiğinde alarmı yüklemek için özellik
-        /*
-        public int AlarmToEditId
-        {
-            get => _alarmToEditId;
-            set
-            {
-                _alarmToEditId = value;
-                if (_alarmToEditId != 0)
-                {
-                    LoadAlarmToEditAsync(_alarmToEditId);
-                }
-            }
-        }
-
-        private async Task LoadAlarmToEditAsync(int alarmId)
-        {
-            _alarmToEdit = await _databaseService.GetAlarmAsync(alarmId);
-            if (_alarmToEdit != null)
-            {
-                StockSymbol = _alarmToEdit.StockSymbol;
-                UpperLimit = _alarmToEdit.UpperLimit;
-                LowerLimit = _alarmToEdit.LowerLimit;
-                PageTitle = "Alarmı Düzenle";
-            }
-        }
-        */
-
-        private bool CanSaveAlarm()
-        {
-            // Hisse sembolü boş olmamalı ve en az bir limit girilmeli
-            return !string.IsNullOrWhiteSpace(StockSymbol) && (UpperLimit.HasValue || LowerLimit.HasValue);
-        }
-
-        [RelayCommand(CanExecute = nameof(CanSaveAlarm))]
+        [RelayCommand]
         private async Task SaveAlarmAsync()
         {
-            if (!CanSaveAlarm())
+            if (IsBusy) return;
+            IsBusy = true;
+
+            try
             {
-                await Shell.Current.DisplayAlert("Hata", "Lütfen hisse sembolünü ve en az bir fiyat limitini girin.", "Tamam");
-                return;
+                // Validasyon
+                if (string.IsNullOrWhiteSpace(StockSymbol))
+                {
+                    await Shell.Current.DisplayAlert("Hata", "Hisse sembolü boş olamaz.", "Tamam");
+                    return;
+                }
+
+                // En az bir limit belirtilmeli
+                if (string.IsNullOrWhiteSpace(UpperLimit) && string.IsNullOrWhiteSpace(LowerLimit))
+                {
+                    await Shell.Current.DisplayAlert("Hata", "En az bir fiyat limiti belirtmelisiniz.", "Tamam");
+                    return;
+                }
+
+                // Limitleri parse et
+                double? upperLimitValue = null;
+                double? lowerLimitValue = null;
+
+                if (!string.IsNullOrWhiteSpace(UpperLimit))
+                {
+                    if (double.TryParse(UpperLimit, out double parsedUpperVal))
+                    {
+                        upperLimitValue = parsedUpperVal;
+                    }
+                    else
+                    {
+                        await Shell.Current.DisplayAlert("Hata", "Üst limit geçerli bir sayı değil.", "Tamam");
+                        return;
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(LowerLimit))
+                {
+                    if (double.TryParse(LowerLimit, out double parsedLowerVal))
+                    {
+                        lowerLimitValue = parsedLowerVal;
+                    }
+                    else
+                    {
+                        await Shell.Current.DisplayAlert("Hata", "Alt limit geçerli bir sayı değil.", "Tamam");
+                        return;
+                    }
+                }
+
+                // Limitleri karşılaştır
+                if (upperLimitValue.HasValue && lowerLimitValue.HasValue && upperLimitValue <= lowerLimitValue)
+                {
+                    await Shell.Current.DisplayAlert("Hata", "Üst limit, alt limitten büyük olmalıdır.", "Tamam");
+                    return;
+                }
+
+                // Alarm oluştur ve kaydet
+                var alarm = new AlarmDefinition
+                {
+                    StockSymbol = StockSymbol.ToUpper().Trim(),
+                    UpperLimit = upperLimitValue,
+                    LowerLimit = lowerLimitValue,
+                    IsActive = IsActive,
+                    CreatedAt = DateTime.Now
+                };
+
+                await _databaseService.SaveAlarmAsync(alarm);
+                await Shell.Current.DisplayAlert("Başarılı", "Alarm başarıyla kaydedildi.", "Tamam");
+                await Shell.Current.GoToAsync("..");
             }
-
-            // Sembolün büyük harf olduğundan emin olalım (isteğe bağlı)
-            StockSymbol = StockSymbol.ToUpperInvariant();
-
-            AlarmDefinition alarm = new AlarmDefinition // _alarmToEdit ?? new AlarmDefinition(); // Düzenleme varsa onu kullan, yoksa yeni oluştur
+            catch (Exception ex)
             {
-                // Id = _alarmToEdit?.Id ?? 0, // Düzenleme varsa ID'sini koru
-                StockSymbol = this.StockSymbol,
-                UpperLimit = this.UpperLimit,
-                LowerLimit = this.LowerLimit,
-                IsEnabled = true // Yeni eklenen alarm varsayılan olarak aktif olsun
-            };
-
-            // Eğer düzenleme yapılıyorsa ve _alarmToEdit null değilse, CreatedDate'i koru
-            // if (_alarmToEdit != null) alarm.CreatedDate = _alarmToEdit.CreatedDate;
-
-            await _databaseService.SaveAlarmAsync(alarm);
-
-            // Kaydettikten sonra ana sayfaya geri dön
-            // MainPageViewModel'deki LoadAlarmsAsync'ın tekrar çağrılması gerekebilir.
-            // Bu, Shell navigasyonunda ".." ile geri gidildiğinde OnAppearing ile tetiklenebilir.
-            await Shell.Current.GoToAsync(".."); // Bir önceki sayfaya git
+                Debug.WriteLine($"Alarm kaydedilirken hata: {ex.Message}");
+                await Shell.Current.DisplayAlert("Hata", $"Alarm kaydedilirken bir sorun oluştu: {ex.Message}", "Tamam");
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         [RelayCommand]
         private async Task CancelAsync()
         {
-            await Shell.Current.GoToAsync(".."); // Bir önceki sayfaya git
+            await Shell.Current.GoToAsync("..");
         }
     }
 }

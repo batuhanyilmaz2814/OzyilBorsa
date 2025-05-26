@@ -1,4 +1,4 @@
-﻿using BorsaAlarmTakipci.Views;
+﻿using Microsoft.Maui.Controls;
 
 namespace BorsaAlarmTakipci
 {
@@ -8,7 +8,8 @@ namespace BorsaAlarmTakipci
         {
             InitializeComponent();
 
-            Routing.RegisterRoute(nameof(AddAlarmPage), typeof(AddAlarmPage)); // AddAlarmPage için rota kaydı
+            // Rota kayıtlarını burada yapın
+            Routing.RegisterRoute("AddAlarmPage", typeof(Views.AddAlarmPage));
         }
     }
 }

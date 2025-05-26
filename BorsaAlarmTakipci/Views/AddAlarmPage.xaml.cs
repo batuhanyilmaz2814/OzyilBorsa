@@ -1,12 +1,14 @@
 using BorsaAlarmTakipci.ViewModels;
+using Microsoft.Maui.Controls;
 
-namespace BorsaAlarmTakipci.Views; // Namespace'in Views içerdiðine dikkat edin
-
-public partial class AddAlarmPage : ContentPage
+namespace BorsaAlarmTakipci.Views
 {
-    public AddAlarmPage(AddAlarmPageViewModel viewModel)
+    public partial class AddAlarmPage : ContentPage
     {
-        InitializeComponent();
-        BindingContext = viewModel;
+        public AddAlarmPage(AddAlarmPageViewModel viewModel)
+        {
+            InitializeComponent();
+            BindingContext = viewModel;
+        }
     }
 }
