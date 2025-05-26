@@ -2,37 +2,30 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="BorsaAlarmTakipci.Views.AddAlarmPage"
-             xmlns:viewmodels="clr-namespace:BorsaAlarmTakipci.ViewModels"
-             x:DataType="viewmodels:AddAlarmPageViewModel"
              Title="Alarm Ekle">
 
     <VerticalStackLayout Spacing="10" Padding="20">
         <Label Text="Hisse Senedi Sembolü:" />
-        <Entry Placeholder="Örn: THYAO, ASELS" 
-               Text="{Binding StockSymbol}" 
-               Keyboard="Text" />
+        <Entry x:Name="StockSymbolEntry" Placeholder="Örn: THYAO, ASELS" Keyboard="Text" />
 
-        <Label Text="Fiyat Üst Limiti (Opsiyonel) :" />
-        <Entry Placeholder="Örn: 150.75" 
-               Text="{Binding UpperLimit}" 
-               Keyboard="Numeric" />
+        <Label Text="Fiyat Üst Limiti (Opsiyonel ) :" />
+        <Entry x:Name="UpperLimitEntry" Placeholder="Örn: 150.75" Keyboard="Numeric" />
 
         <Label Text="Fiyat Alt Limiti (Opsiyonel):" />
-        <Entry Placeholder="Örn: 120.50" 
-               Text="{Binding LowerLimit}" 
-               Keyboard="Numeric" />
+        <Entry x:Name="LowerLimitEntry" Placeholder="Örn: 120.50" Keyboard="Numeric" />
 
         <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,20,0,0">
             <Button Grid.Column="0" 
                     Text="Kaydet" 
-                    Command="{Binding SaveAlarmCommand}" 
-                    Style="{StaticResource ButtonPrimary}"/>
-            <!-- Stil tanımlanabilir -->
+                    Clicked="OnSaveButtonClicked"
+                    BackgroundColor="#007bff"
+                    TextColor="White"/>
+
             <Button Grid.Column="1" 
                     Text="İptal" 
-                    Command="{Binding CancelCommand}" 
-                    Style="{StaticResource ButtonSecondary}"/>
-            <!-- Stil tanımlanabilir -->
+                    Clicked="OnCancelButtonClicked"
+                    BackgroundColor="#6c757d"
+                    TextColor="White"/>
         </Grid>
     </VerticalStackLayout>
 </ContentPage>

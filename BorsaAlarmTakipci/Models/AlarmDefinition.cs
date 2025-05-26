@@ -14,7 +14,6 @@ namespace BorsaAlarmTakipci.Models
 
         public double? LowerLimit { get; set; }
 
-        // Eksik özellikler eklendi
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;

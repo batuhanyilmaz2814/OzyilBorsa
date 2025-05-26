@@ -3,12 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="BorsaAlarmTakipci.MainPage"
              xmlns:viewmodels="clr-namespace:BorsaAlarmTakipci.ViewModels"
-             xmlns:models="clr-namespace:BorsaAlarmTakipci.Models" 
-             x:DataType="viewmodels:MainPageViewModel" 
+             xmlns:models="clr-namespace:BorsaAlarmTakipci.Models"
+             x:DataType="viewmodels:MainPageViewModel"
              Title="Borsa Alarmlarım">
 
     <!-- ViewModel'ı code-behind'da BindingContext olarak ayarlıyoruz -->
-
     <Grid RowDefinitions="*, Auto">
         <CollectionView ItemsSource="{Binding Alarms}"
                         Grid.Row="0"
@@ -17,7 +16,6 @@
                 <StackLayout Padding="20" HorizontalOptions="Center" VerticalOptions="Center">
                     <Label Text="Henüz alarm tanımlanmamış." HorizontalTextAlignment="Center" />
                     <Label Text="Yeni bir alarm eklemek için aşağıdaki '+' butonuna dokunun." HorizontalTextAlignment="Center" />
-                    
                 </StackLayout>
             </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>
@@ -37,15 +35,13 @@
                                 </HorizontalStackLayout>
                                 <Label Text="{Binding CreatedAt, StringFormat='Oluşturulma: {0:dd.MM.yyyy HH:mm}'}" FontSize="Small" TextColor="Gray"/>
                             </StackLayout>
-
                             <Switch Grid.Column="1" IsToggled="{Binding IsActive}" VerticalOptions="Center" />
-
                             <Button Grid.Column="2" 
                                     Text="Sil" 
-                                    TextColor="Red"
+                                    TextColor="Red" 
                                     BackgroundColor="Transparent"
                                     Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:MainPageViewModel}}, Path=DeleteAlarmCommand}"
-                                    CommandParameter="{Binding .}" 
+                                    CommandParameter="{Binding .}"
                                     VerticalOptions="Center" />
                         </Grid>
                     </Frame>
@@ -53,37 +49,37 @@
             </CollectionView.ItemTemplate>
         </CollectionView>
 
-        <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" 
-                           HorizontalOptions="Center" VerticalOptions="Center" 
-                           Grid.Row="0" Color="DodgerBlue"/>
+        <ActivityIndicator IsRunning="{Binding IsBusy}" 
+                           IsVisible="{Binding IsBusy}" 
+                           HorizontalOptions="Center" 
+                           VerticalOptions="Center"
+                           Grid.Row="0"
+                           Color="DodgerBlue"/>
 
         <Button Text="+" 
                 Grid.Row="1"
-                Command="{Binding GoToAddAlarmPageCommand}" 
-                FontSize="Large" 
+                Command="{Binding GoToAddAlarmPageCommand}"
+                FontSize="Large"
                 FontAttributes="Bold"
                 CornerRadius="28"
-                HeightRequest="56" 
+                HeightRequest="56"
                 WidthRequest="56"
-                HorizontalOptions="End" 
+                HorizontalOptions="End"
                 VerticalOptions="End"
                 Margin="0,0,20,20" />
 
         <Label Text="Batuhan Yılmaz - Yıldız Teknik Üniversitesi CE"
-                HorizontalOptions="Center" 
-                VerticalOptions="End"
-                Grid.Row="1"
-                Margin="0,0,0,20" />
+               HorizontalOptions="Center"
+               VerticalOptions="End"
+               Grid.Row="1"
+               Margin="0,0,0,20" />
 
-        <!-- API Test Butonu (Geçici, isteğe bağlı ) -->
-        
-        <Button Text="API Test" 
-                Command="{Binding TestApiCommand}" 
-                HorizontalOptions="Start" 
+        <!-- API Test Butonu (Geçici, isteğe bağlı  ) -->
+        <Button Text="API Test"
+                Command="{Binding TestApiCommand}"
+                HorizontalOptions="Start"
                 VerticalOptions="End"
                 Grid.Row="1"
                 Margin="20,0,0,20" />
-        
     </Grid>
-
 </ContentPage>

@@ -188,11 +188,13 @@ namespace BorsaAlarmTakipci.ViewModels
             }
         }
 
+
         [RelayCommand]
-        private async Task GoToAddAlarmPageAsync()
+        private async Task GoToAddAlarmPage()
         {
-            await Shell.Current.GoToAsync("//AddAlarmPage");
+            await Shell.Current.GoToAsync("AddAlarmPage");
         }
+
 
         [RelayCommand]
         private async Task DeleteAlarmAsync(AlarmDefinition alarmToDelete)

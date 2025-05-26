@@ -26,6 +26,8 @@
 
 		<!-- App Identifier -->
 		<ApplicationId>com.companyname.borsaalarmtakipci</ApplicationId>
+		
+		<ApplicationIcon>Resources\Images\ozyil_app_icon.ico</ApplicationIcon>
 
 		<!-- Versions -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
@@ -56,6 +58,21 @@
 
 		<!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <MauiImage Remove="Resources\Images\ozyil_app_icon.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Remove="Resources\Images\ozyil_app_icon.ico" />
+	  <None Remove="Resources\Images\ozyil_app_icon.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Include="Resources\Images\ozyil_app_icon.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
 	</ItemGroup>
 
 	<ItemGroup>

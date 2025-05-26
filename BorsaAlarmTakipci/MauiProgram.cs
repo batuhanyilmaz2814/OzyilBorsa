@@ -31,7 +31,9 @@ public static class MauiProgram
 
         // Views
         builder.Services.AddSingleton<MainPage>();
-        builder.Services.AddTransient<AddAlarmPage>();
+        builder.Services.AddTransient<Views.AddAlarmPage>();
+
+
 
 #if DEBUG
         builder.Logging.AddDebug();
